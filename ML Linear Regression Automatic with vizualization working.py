@@ -3,7 +3,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import (
-    QApplication, QMainWindow, QFileDialog, QVBoxLayout, QPushButton, QLabel, QWidget, QListWidget, QLineEdit, QMessageBox, QTextEdit
+    QApplication, QMainWindow, QFileDialog, QVBoxLayout, QPushButton, QLabel, QWidget, QListWidget, QLineEdit, QMessageBox, QTextEdit, QComboBox, QCheckBox
 )
 from PyQt5.QtCore import Qt
 from sklearn.model_selection import train_test_split
@@ -48,6 +48,13 @@ class DataAnalysisApp(QMainWindow):
         self.visualize_button.clicked.connect(self.visualize_data)
         self.layout.addWidget(self.visualize_button)
         
+        self.feature_list = QListWidget()
+        self.feature_list.setSelectionMode(QListWidget.MultiSelection)
+        self.layout.addWidget(self.feature_list)
+        
+        self.target_combo = QComboBox()
+        self.layout.addWidget(self.target_combo)
+        
         self.train_button = QPushButton("Train Model")
         self.train_button.clicked.connect(self.train_model_button)
         self.layout.addWidget(self.train_button)
@@ -67,10 +74,21 @@ class DataAnalysisApp(QMainWindow):
         self.layout.addWidget(self.stats_label)
 
     def load_data(self):
-        file_path, _ = QFileDialog.getOpenFileName(self, "Open CSV", "", "CSV Files (*.csv)")
+        file_path, _ = QFileDialog.getOpenFileName(self, "Open File", "", "CSV Files (*.csv);;Excel Files (*.xlsx *.xls)")
         if file_path:
-            self.df = pd.read_csv(file_path)
+            if file_path.endswith('.csv'):
+                self.df = pd.read_csv(file_path)
+            else:
+                self.df = pd.read_excel(file_path)
             self.status_label.setText(f"Status: Loaded data from {file_path}")
+            self.update_feature_target_selection()
+
+    def update_feature_target_selection(self):
+        self.feature_list.clear()
+        self.target_combo.clear()
+        if hasattr(self, 'df'):
+            self.feature_list.addItems(self.df.columns)
+            self.target_combo.addItems(self.df.columns)
 
     def show_data_description(self):
         if hasattr(self, 'df'):
@@ -134,10 +152,13 @@ class DataAnalysisApp(QMainWindow):
 
     def train_model_button(self):
         if hasattr(self, 'df'):
-            features = self.df.columns[:-1]  # Assuming the last column is the target
-            target = self.df.columns[-1]
-            self.train_model(self.df, features, target)
-            self.status_label.setText("Status: Model trained")
+            features = [item.text() for item in self.feature_list.selectedItems()]
+            target = self.target_combo.currentText()
+            if features and target:
+                self.train_model(self.df, features, target)
+                self.status_label.setText("Status: Model trained")
+            else:
+                QMessageBox.warning(self, "Error", "Please select features and target")
         else:
             QMessageBox.warning(self, "Error", "No data loaded")
 
